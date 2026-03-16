@@ -5,15 +5,15 @@ A production-ready data platform designed to process, analyze, and predict music
 ---
 
 ## 📝 Problem Context
-Streaming platforms like Spotify generate billions of data points daily—from song metadata to real-time user playback events. The challenge is to build a system that can ingest 1M+ historical records while simultaneously processing live "playback" signals to provide immediate business insights and train predictive ML models.
+Streaming platforms like Spotify generate billions of data points daily—from song metadata to real-time user playback events. The challenge is to build a system that can ingest 1M+ historical records while simultaneously processing live " playback\ signals to provide immediate business insights and train predictive ML models.
 
 ## 🎯 Objective
 The goal of this project is to implement a complete **Lambda Architecture** (Batch + Streaming) that:
-1.  **Ingests** massive track datasets (1.2M+ rows) and real-time Kafka streams.
-2.  **Transforms** raw data into a clean, analytics-ready Star Schema using dbt.
-3.  **Validates** data quality at every step using Great Expectations.
-4.  **Operationalizes** ML models to predict song popularity and classify genres.
-5.  **Visualizes** platform health and music trends in a premium real-time dashboard.
+1. **Ingests** massive track datasets (1.2M+ rows) and real-time Kafka streams.
+2. **Transforms** raw data into a clean, analytics-ready Star Schema using dbt.
+3. **Validates** data quality at every step using Great Expectations.
+4. **Operationalizes** ML models to predict song popularity and classify genres.
+5. **Visualizes** platform health and music trends in a premium real-time dashboard.
 
 ## 🚀 Solution
 A fully containerized ecosystem leveraging:
@@ -27,51 +27,8 @@ A fully containerized ecosystem leveraging:
 ---
 
 ## 🏗️ Architecture
-```
-                  ┌──────────────┐
-                  │  Kaggle CSVs │
-                  │  (4 datasets)│
-                  └──────┬───────┘
-                         │
-              ┌──────────▼──────────┐
-              │   Batch Loader      │
-              │   (pandas → Postgres)│
-              └──────────┬──────────┘
-                         │
-    ┌────────────────────▼────────────────────┐
-    │          PostgreSQL 15                   │
-    │  ┌──────┐ ┌───────┐ ┌─────┐ ┌────┐     │
-    │  │ raw  │ │staging│ │marts│ │ ml │     │
-    │  └──┬───┘ └───┬───┘ └──┬──┘ └──┬─┘     │
-    └─────┼─────────┼────────┼───────┼────────┘
-          │         │        │       │
-    ┌─────▼─────┐   │   ┌────▼───┐   │
-    │ Spark     │   │   │  dbt   │   │
-    │ Job 1     ├───┘   │  Core  │   │
-    │(clean+join│       │(staging│   │
-    │  1.2M)    │       │ →marts)│   │
-    └───────────┘       └────────┘   │
-                                     │
-    ┌───────────┐   ┌────────────┐   │
-    │  Kafka    │   │ Spark      │   │
-    │ Producer  ├──►│ Structured │   │
-    │ (events)  │   │ Streaming  │   │
-    └───────────┘   └──────┬─────┘   │
-                           │         │
-    ┌──────────────────────┘    ┌────▼────────┐
-    │                           │ Streamlit   │
-    │                           │ Dashboard   │
-    │                           └─────────────┘
-    │    ┌─────────┐    ┌─────────────────┐
-    │    │  MLflow  │◄──│ Spark MLlib     │
-    │    │ (Models) │   │ (GBT + RF)      │
-    │    └─────────┘    └─────────────────┘
-    │
-    │    ┌──────────────────────────────┐
-    └───►│  Apache Airflow              │
-         │  (Orchestration Engine)      │
-         └──────────────────────────────┘
-```
+
+![Platform Architecture](./screenshot/architecture_v1.png)
 
 ---
 
@@ -83,17 +40,17 @@ A fully containerized ecosystem leveraging:
 - **Python 3.11+** (Optional, for local env).
 
 ### 2. Environment Setup
-Clone the repo and create your `.env` file:
-```bash
+Clone the repo and create your .env file:
+`ash
 cp .env.example .env
-```
+`
 
 ### 3. Data Files
-Place the following CSV files in `data_sources/raw/`:
-- `tracks_features.csv`
-- `tracks.csv`
-- `Most Streamed Spotify Songs 2024.csv`
-- `artists.csv`
+Place the following CSV files in data_sources/raw/:
+- racks_features.csv
+- racks.csv
+- Most Streamed Spotify Songs 2024.csv
+- rtists.csv
 
 ---
 
@@ -101,35 +58,35 @@ Place the following CSV files in `data_sources/raw/`:
 
 ### Step 1: Launch Infrastructure
 Start all 13 services (approx. 2-3 mins):
-```bash
+`ash
 docker-compose up -d --build
-```
+`
 
 ### Step 2: Ingest & Process Batch Data
 Run the primary Spark processing job and building dbt models:
-```bash
+`ash
 # Clean and Join 1.2M tracks
 docker exec -u root spotify-spark-master spark-submit --master spark://spark-master:7077 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/spark-jobs/job1_clean_and_join.py
 
 # Run SQL transformations
 docker exec spotify-airflow-scheduler dbt run --project-dir /opt/airflow/dbt_project
-```
+`
 
 ### Step 3: Start Real-Time Pipeline
 Launch the Kafka producer and the Spark streaming job:
-```bash
+`ash
 # Start play event simulation
 docker-compose up -d kafka-producer
 
 # Start windowed streaming aggregation
-docker exec -u root spotify-spark-master spark-submit --conf "spark.jars.ivy=/tmp/.ivy" --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/spark-jobs/job2_structured_streaming.py
-```
+docker exec -u root spotify-spark-master spark-submit --conf \spark.jars.ivy=/tmp/.ivy\ --master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/spark-jobs/job2_structured_streaming.py
+`
 
 ### Step 4: Train ML Models
 Train the popularity and genre models and log them to MLflow:
-```bash
+`ash
 docker exec -u root spotify-spark-master spark-submit --master spark://spark-master:7077 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/ml/train_popularity_model.py
-```
+`
 
 ---
 
@@ -143,5 +100,5 @@ docker exec -u root spotify-spark-master spark-submit --master spark://spark-mas
 ---
 
 ## 👤 Author
-**Spotify-End-To-End-Data-Engineering-Project**  
-Developed as a showcase of production-grade data engineering, streaming, and MLOps.
+**Muhammad Irfan Wahyudi**
+Big Data and Cloud Computing Engineering Student
