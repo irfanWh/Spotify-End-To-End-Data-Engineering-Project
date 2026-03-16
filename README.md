@@ -28,7 +28,7 @@ A fully containerized ecosystem leveraging:
 
 ## 🏗️ Architecture
 
-![Platform Architecture](./screenshot/architecture_v1.png)
+![Platform Architecture](./architecture/architecture_v1.png)
 
 ---
 
@@ -41,7 +41,7 @@ A fully containerized ecosystem leveraging:
 
 ### 2. Environment Setup
 Clone the repo and create your .env file:
-`ash
+`bash
 cp .env.example .env
 `
 
@@ -50,7 +50,7 @@ Place the following CSV files in data_sources/raw/:
 - racks_features.csv
 - racks.csv
 - Most Streamed Spotify Songs 2024.csv
-- rtists.csv
+- artists.csv
 
 ---
 
@@ -58,13 +58,13 @@ Place the following CSV files in data_sources/raw/:
 
 ### Step 1: Launch Infrastructure
 Start all 13 services (approx. 2-3 mins):
-`ash
+`bash
 docker-compose up -d --build
 `
 
 ### Step 2: Ingest & Process Batch Data
 Run the primary Spark processing job and building dbt models:
-`ash
+`bash
 # Clean and Join 1.2M tracks
 docker exec -u root spotify-spark-master spark-submit --master spark://spark-master:7077 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/spark-jobs/job1_clean_and_join.py
 
@@ -74,7 +74,7 @@ docker exec spotify-airflow-scheduler dbt run --project-dir /opt/airflow/dbt_pro
 
 ### Step 3: Start Real-Time Pipeline
 Launch the Kafka producer and the Spark streaming job:
-`ash
+`bash
 # Start play event simulation
 docker-compose up -d kafka-producer
 
@@ -84,7 +84,7 @@ docker exec -u root spotify-spark-master spark-submit --conf \spark.jars.ivy=/tm
 
 ### Step 4: Train ML Models
 Train the popularity and genre models and log them to MLflow:
-`ash
+`bash
 docker exec -u root spotify-spark-master spark-submit --master spark://spark-master:7077 --jars /opt/spark-jobs/jars/postgresql-42.7.1.jar /opt/ml/train_popularity_model.py
 `
 
