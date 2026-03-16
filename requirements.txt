@@ -1,0 +1,25 @@
+# Core
+pyspark==3.5.0
+pandas==2.1.4
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Kafka
+kafka-python==2.0.2
+
+# Data quality
+great-expectations==0.18.8
+
+# ML tracking
+mlflow==2.10.0
+
+# Orchestration (local dev only)
+apache-airflow==2.8.1
+
+# dbt
+dbt-core==1.7.4
+dbt-postgres==1.7.4
+
+# Testing & linting
+pytest==7.4.4
+ruff==0.1.11

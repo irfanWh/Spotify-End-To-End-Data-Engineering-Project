@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: spark-job3-feature-engineering
+  namespace: default
+  labels:
+    app: spotify-platform
+    job: spark-job3
+spec:
+  restartPolicy: Never
+  containers:
+    - name: spark-job3
+      image: public.ecr.aws/bitnami/spark:3.5
+      command:
+        - "spark-submit"
+      args:
+        - "--master"
+        - "spark://spark-master:7077"
+        - "--jars"
+        - "/opt/spark-jobs/jars/postgresql-42.7.1.jar"
+        - "/opt/spark-jobs/job3_feature_engineering.py"
+      env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: spotify-secrets
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: spotify-secrets
+              key: postgres-password
+        - name: SPARK_POSTGRES_JDBC_URL
+          value: "jdbc:postgresql://postgres:5432/spotify_platform"
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow:5000"
+      volumeMounts:
+        - name: spark-jobs
+          mountPath: /opt/spark-jobs
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "2Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+  volumes:
+    - name: spark-jobs
+      hostPath:
+        path: /opt/spark-jobs

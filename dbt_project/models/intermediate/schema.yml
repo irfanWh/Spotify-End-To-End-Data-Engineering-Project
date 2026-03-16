@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: int_tracks_with_popularity
+    description: "Intermediate: enriched tracks joined with 2024 streaming data, adds is_charting flag"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: track_id
+        description: "Spotify track identifier"
+        tests:
+          - not_null
+      - name: track_name
+        description: "Track title"
+      - name: is_charting
+        description: "Whether the track appears in 2024 most-streamed list"
+      - name: spotify_streams
+        description: "Total Spotify streams (from 2024 data, null if not charting)"

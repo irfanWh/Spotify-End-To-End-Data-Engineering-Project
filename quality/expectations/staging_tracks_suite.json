@@ -1,0 +1,81 @@
+{
+    "expectation_suite_name": "staging_tracks_suite",
+    "ge_cloud_id": null,
+    "meta": {
+        "great_expectations_version": "0.18.8",
+        "description": "Data quality checks for staging.tracks_enriched after Spark Job 1"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "track_id"
+            },
+            "meta": {
+                "notes": "Track ID must not be null after enrichment"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "energy_dance_ratio",
+                "mostly": 0.90
+            },
+            "meta": {
+                "notes": "energy_dance_ratio should be computed for most tracks"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_of_type",
+            "kwargs": {
+                "column": "danceability",
+                "type_": "DOUBLE_PRECISION"
+            },
+            "meta": {
+                "notes": "Audio features should be FLOAT/DOUBLE"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_of_type",
+            "kwargs": {
+                "column": "energy",
+                "type_": "DOUBLE_PRECISION"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_of_type",
+            "kwargs": {
+                "column": "loudness",
+                "type_": "DOUBLE_PRECISION"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_of_type",
+            "kwargs": {
+                "column": "valence",
+                "type_": "DOUBLE_PRECISION"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_unique",
+            "kwargs": {
+                "column": "track_id"
+            },
+            "meta": {
+                "notes": "No duplicate track IDs in enriched table"
+            }
+        },
+        {
+            "expectation_type": "expect_table_row_count_to_be_between",
+            "kwargs": {
+                "min_value": 100000
+            },
+            "meta": {
+                "notes": "Should have at least 500K enriched tracks"
+            }
+        }
+    ]
+}

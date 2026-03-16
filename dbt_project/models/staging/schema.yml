@@ -1,0 +1,226 @@
+version: 2
+
+sources:
+  - name: raw_source
+    description: "Raw landing zone — data loaded by batch_loader.py and Spark streaming"
+    schema: raw
+    freshness:
+      warn_after: {count: 2, period: hour}
+      error_after: {count: 6, period: hour}
+    loaded_at_field: "null"  # raw tables don't have loaded_at; freshness checked manually
+    tables:
+      - name: tracks_1m
+        description: "1.2M Spotify tracks with audio features from tracks_features.csv"
+      - name: tracks_historical
+        description: "600K historical Spotify tracks (1921-2020) from tracks.csv"
+      - name: streams_2024
+        description: "Top streamed songs 2024 cross-platform from Most Streamed Spotify Songs 2024.csv"
+      - name: global
+        description: "Global music dataset with artist/album metadata from spotify_data clean.csv"
+      - name: play_events_windowed
+        description: "5-minute windowed aggregations of play events from Spark Structured Streaming"
+      - name: artists
+        description: "Artist metadata including followers, genres, and popularity"
+
+  - name: staging_source
+    description: "Staging zone — enriched data from Spark processing"
+    schema: staging
+    tables:
+      - name: tracks_enriched
+        description: "Cleaned and joined tracks from Spark Job 1"
+
+models:
+  - name: stg_tracks_enriched
+    description: "Staging view over Spark-cleaned tracks with loaded_at timestamp"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: track_id
+        description: "Spotify track identifier"
+        tests:
+          - unique
+          - not_null
+      - name: track_name
+        description: "Track title"
+      - name: album
+        description: "Album name"
+      - name: album_id
+        description: "Spotify album identifier"
+      - name: artists
+        description: "Comma-separated list of artist names"
+      - name: artist_ids
+        description: "Comma-separated list of Spotify artist identifiers"
+      - name: track_number
+        description: "Track position within the album"
+      - name: disc_number
+        description: "Disc number for multi-disc albums"
+      - name: explicit
+        description: "Whether the track contains explicit content"
+      - name: danceability
+        description: "Audio feature: how suitable for dancing (0.0-1.0)"
+      - name: energy
+        description: "Audio feature: intensity and activity (0.0-1.0)"
+      - name: key
+        description: "Musical key of the track (0-11, Pitch Class notation)"
+      - name: loudness
+        description: "Overall loudness in decibels (dB)"
+      - name: mode
+        description: "Modality: 1 for major, 0 for minor"
+      - name: speechiness
+        description: "Audio feature: presence of spoken words (0.0-1.0)"
+      - name: acousticness
+        description: "Audio feature: confidence of acoustic nature (0.0-1.0)"
+      - name: instrumentalness
+        description: "Audio feature: likelihood of no vocals (0.0-1.0)"
+      - name: liveness
+        description: "Audio feature: presence of live audience (0.0-1.0)"
+      - name: valence
+        description: "Audio feature: musical positiveness (0.0-1.0)"
+      - name: tempo
+        description: "Tempo in beats per minute (BPM)"
+      - name: duration_ms
+        description: "Track duration in milliseconds"
+      - name: time_signature
+        description: "Time signature (beats per measure)"
+      - name: year
+        description: "Release year"
+      - name: release_date
+        description: "Full release date string"
+      - name: popularity
+        description: "Spotify popularity score (0-100), from historical dataset"
+      - name: energy_dance_ratio
+        description: "Derived: energy / danceability"
+      - name: decade
+        description: "Derived: decade of release (e.g. 1990, 2000, 2010)"
+      - name: in_both_sources
+        description: "Whether the track appears in both 1.2M and 600K datasets"
+      - name: loaded_at
+        description: "Timestamp when the dbt model was materialised"
+
+  - name: stg_streams_2024
+    description: "Staging view of 2024 most-streamed songs with cleaned numeric columns"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: track_name
+        description: "Track title"
+        tests:
+          - not_null
+      - name: album_name
+        description: "Album name"
+      - name: artist_name
+        description: "Primary artist name"
+      - name: release_date
+        description: "Release date string"
+      - name: isrc
+        description: "International Standard Recording Code"
+      - name: all_time_rank
+        description: "All-time ranking position"
+      - name: track_score
+        description: "Composite track score"
+      - name: spotify_streams
+        description: "Total Spotify streams"
+      - name: spotify_playlist_count
+        description: "Number of Spotify playlists containing this track"
+      - name: spotify_playlist_reach
+        description: "Total reach of Spotify playlists containing this track"
+      - name: spotify_popularity
+        description: "Spotify popularity score (0-100)"
+      - name: youtube_views
+        description: "Total YouTube views"
+      - name: youtube_likes
+        description: "Total YouTube likes"
+      - name: tiktok_posts
+        description: "Number of TikTok posts using this track"
+      - name: tiktok_likes
+        description: "Total TikTok likes"
+      - name: tiktok_views
+        description: "Total TikTok views"
+      - name: youtube_playlist_reach
+        description: "YouTube playlist reach"
+      - name: apple_music_playlist_count
+        description: "Number of Apple Music playlists containing this track"
+      - name: airplay_spins
+        description: "Number of radio airplay spins"
+      - name: siriusxm_spins
+        description: "Number of SiriusXM radio spins"
+      - name: deezer_playlist_count
+        description: "Number of Deezer playlists containing this track"
+      - name: deezer_playlist_reach
+        description: "Total reach of Deezer playlists"
+      - name: amazon_playlist_count
+        description: "Number of Amazon Music playlists"
+      - name: pandora_streams
+        description: "Total Pandora streams"
+      - name: pandora_track_stations
+        description: "Number of Pandora track stations"
+      - name: soundcloud_streams
+        description: "Total SoundCloud streams"
+      - name: shazam_counts
+        description: "Total Shazam searches"
+      - name: tidal_popularity
+        description: "TIDAL popularity score"
+      - name: explicit_track
+        description: "Whether the track is explicit"
+
+  - name: stg_global
+    description: "Staging view of global music dataset with standardised types"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: track_id
+        description: "Spotify track identifier"
+        tests:
+          - not_null
+      - name: track_name
+        description: "Track title"
+      - name: track_number
+        description: "Track position in album"
+      - name: track_popularity
+        description: "Track popularity score (0-100)"
+      - name: explicit
+        description: "Whether the track is explicit"
+      - name: artist_name
+        description: "Primary artist name"
+      - name: artist_popularity
+        description: "Artist popularity score (0-100)"
+      - name: artist_followers
+        description: "Number of artist followers on Spotify"
+      - name: artist_genres
+        description: "Comma-separated list of artist genres"
+      - name: album_id
+        description: "Spotify album identifier"
+      - name: album_name
+        description: "Album name"
+      - name: album_release_date
+        description: "Album release date"
+      - name: album_total_tracks
+        description: "Total tracks in the album"
+      - name: album_type
+        description: "Album type (ALBUM, SINGLE, COMPILATION)"
+      - name: track_duration_min
+        description: "Track duration in minutes"
+
+  - name: stg_play_events
+    description: "Staging view of Spark Structured Streaming windowed aggregations"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: window_start
+        description: "Start of the 5-minute tumbling window"
+        tests:
+          - not_null
+      - name: window_end
+        description: "End of the 5-minute tumbling window"
+        tests:
+          - not_null
+      - name: track_id
+        description: "Spotify track identifier"
+        tests:
+          - not_null
+      - name: play_count
+        description: "Number of play events in the window"
+      - name: skip_count
+        description: "Number of skip events in the window"
+      - name: like_count
+        description: "Number of like events in the window"

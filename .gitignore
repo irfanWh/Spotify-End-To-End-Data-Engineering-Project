@@ -1,0 +1,48 @@
+# Environment secrets
+.env
+
+# Large data files
+data_sources/raw/*.csv
+data_sources/raw/*.json
+data_source/raw/*.csv
+data_source/raw/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Docker
+*.log
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+
+# Great Expectations
+quality/great_expectations/uncommitted/
+quality/great_expectations/checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

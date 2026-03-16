@@ -1,0 +1,304 @@
+version: "3.8"
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: airflow/Dockerfile
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_FERNET_KEY}
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    POSTGRES_DB: ${POSTGRES_DB}
+    POSTGRES_HOST: ${POSTGRES_HOST}
+    POSTGRES_PORT: ${POSTGRES_PORT}
+    KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+    KAFKA_TOPIC: ${KAFKA_TOPIC}
+    MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+    SPARK_MASTER_URL: ${SPARK_MASTER_URL}
+    SPARK_POSTGRES_JDBC_URL: ${SPARK_POSTGRES_JDBC_URL}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./dbt_project:/opt/airflow/dbt_project
+    - ./ingestion:/opt/airflow/ingestion
+    - ./spark_jobs:/opt/airflow/spark_jobs
+    - ./quality:/opt/airflow/quality
+    - ./ml:/opt/airflow/ml
+    - ./data_sources:/opt/airflow/data_sources
+    - airflow_logs:/opt/airflow/logs
+    - airflow_plugins:/opt/airflow/plugins
+  networks:
+    - spotify_net
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  # ──────────────── PostgreSQL ────────────────
+  postgres:
+    image: postgres:15
+    container_name: spotify-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - spotify_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ──────────────── Zookeeper ────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: spotify-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── Kafka ────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: spotify-kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+    depends_on:
+      - zookeeper
+    networks:
+      - spotify_net
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ──────────────── Kafka UI ────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.1
+    container_name: spotify-kafka-ui
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: spotify-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── Airflow Init ────────────────
+  airflow-init:
+    <<: *airflow-common
+    container_name: spotify-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db init &&
+        airflow users create \
+          --username ${AIRFLOW_ADMIN_USER} \
+          --password ${AIRFLOW_ADMIN_PASSWORD} \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@spotify-platform.local &&
+        echo "Airflow init complete."
+    restart: "no"
+
+  # ──────────────── Airflow Webserver ────────────────
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: spotify-airflow-webserver
+    command: airflow webserver --port 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ──────────────── Airflow Scheduler ────────────────
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: spotify-airflow-scheduler
+    command: airflow scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ──────────────── Spark Master ────────────────
+  spark-master:
+    image: public.ecr.aws/bitnami/spark:3.5
+    container_name: spotify-spark-master
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: 7077
+      SPARK_MASTER_WEBUI_PORT: 8081
+    ports:
+      - "7077:7077"
+      - "8081:8081"
+    volumes:
+      - ./spark_jobs:/opt/spark-jobs
+      - ./data_sources:/opt/data_sources
+      - ./ml:/opt/ml
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── Spark Worker 1 ────────────────
+  spark-worker-1:
+    image: public.ecr.aws/bitnami/spark:3.5
+    container_name: spotify-spark-worker-1
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    depends_on:
+      - spark-master
+    volumes:
+      - ./spark_jobs:/opt/spark-jobs
+      - ./data_sources:/opt/data_sources
+      - ./ml:/opt/ml
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── Spark Worker 2 ────────────────
+  spark-worker-2:
+    image: public.ecr.aws/bitnami/spark:3.5
+    container_name: spotify-spark-worker-2
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2g
+    depends_on:
+      - spark-master
+    volumes:
+      - ./spark_jobs:/opt/spark-jobs
+      - ./data_sources:/opt/data_sources
+      - ./ml:/opt/ml
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── MLflow ────────────────
+  mlflow:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    image: spotify-mlflow-custom:latest
+    container_name: spotify-mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow_db
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mlflow_db
+        --default-artifact-root /mlflow/artifacts
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+  # ──────────────── Kafka Producer ────────────────
+  kafka-producer:
+    build:
+      context: ./data_sources/kafka_producer
+      dockerfile: Dockerfile
+    container_name: spotify-kafka-producer
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_TOPIC: ${KAFKA_TOPIC}
+    volumes:
+      - ./data_sources/raw:/opt/data/raw
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - spotify_net
+    profiles:
+      - producer
+    restart: unless-stopped
+
+  # ──────────────── Interactive Dashboard ────────────────
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: spotify-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./dashboard:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - spotify_net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  airflow_logs:
+    driver: local
+  airflow_plugins:
+    driver: local
+  mlflow_artifacts:
+    driver: local
+
+networks:
+  spotify_net:
+    driver: bridge

@@ -1,0 +1,167 @@
+version: 2
+
+models:
+  - name: fact_streams
+    description: "Fact table: one row per track/date with stream measures and chart metrics"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: stream_id
+        description: "Surrogate key for the stream fact"
+        tests:
+          - unique
+          - not_null
+      - name: track_id
+        description: "FK to dim_track"
+        tests:
+          - not_null
+      - name: date_id
+        description: "FK to dim_date"
+      - name: artist_name
+        description: "Primary artist name"
+      - name: play_count
+        description: "Number of play events"
+      - name: total_streams
+        description: "Total stream count across platforms"
+      - name: popularity
+        description: "Popularity score (0-100)"
+      - name: chart_position
+        description: "Chart position (0 if not charting)"
+      - name: is_charting
+        description: "Whether the track is in 2024 charts"
+
+  - name: dim_track
+    description: "Dimension: track audio features, metadata, genre, and charting status"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: track_id
+        description: "Spotify track identifier (PK)"
+        tests:
+          - unique
+          - not_null
+      - name: track_name
+        description: "Track title"
+      - name: explicit
+        description: "Whether the track has explicit content"
+      - name: danceability
+        description: "Audio feature: danceability (0.0-1.0)"
+      - name: energy
+        description: "Audio feature: energy (0.0-1.0)"
+      - name: loudness
+        description: "Audio feature: loudness in dB"
+      - name: speechiness
+        description: "Audio feature: speechiness (0.0-1.0)"
+      - name: acousticness
+        description: "Audio feature: acousticness (0.0-1.0)"
+      - name: instrumentalness
+        description: "Audio feature: instrumentalness (0.0-1.0)"
+      - name: liveness
+        description: "Audio feature: liveness (0.0-1.0)"
+      - name: valence
+        description: "Audio feature: musical positiveness (0.0-1.0)"
+      - name: tempo
+        description: "Tempo in BPM"
+      - name: duration_ms
+        description: "Track duration in milliseconds"
+      - name: time_signature
+        description: "Time signature (beats per measure)"
+      - name: energy_dance_ratio
+        description: "Derived: energy / danceability"
+      - name: decade
+        description: "Decade of release"
+      - name: genre
+        description: "Artist genre(s) from global dataset"
+      - name: is_charting
+        description: "Whether the track is in 2024 charts"
+      - name: popularity
+        description: "Popularity score (0-100)"
+
+  - name: dim_artist
+    description: "Dimension: deduplicated artists with followers, genres, avg popularity. SCD Type 1."
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: artist_id
+        description: "Surrogate key for the artist (PK)"
+        tests:
+          - unique
+          - not_null
+      - name: artist_name
+        description: "Artist display name"
+        tests:
+          - not_null
+      - name: follower_count
+        description: "Number of Spotify followers"
+      - name: artist_genres
+        description: "Comma-separated genre list"
+      - name: avg_popularity
+        description: "Average popularity across all tracks"
+      - name: track_count
+        description: "Total number of tracks by this artist"
+
+  - name: dim_date
+    description: "Dimension: date spine from 1921 to 2025 with calendar attributes"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: date_id
+        description: "Date primary key (YYYY-MM-DD)"
+        tests:
+          - unique
+          - not_null
+      - name: full_date
+        description: "Full date value"
+      - name: day
+        description: "Day of month (1-31)"
+      - name: month
+        description: "Month number (1-12)"
+      - name: month_name
+        description: "Full month name"
+      - name: quarter
+        description: "Quarter of year (1-4)"
+      - name: year
+        description: "Calendar year"
+      - name: decade
+        description: "Decade (e.g. 1990, 2000)"
+      - name: is_weekend
+        description: "Whether the date falls on a weekend"
+
+  - name: dim_platform
+    description: "Dimension: cross-platform presence metrics for 2024 top tracks"
+    meta:
+      owner: "data_engineering_team"
+    columns:
+      - name: platform_id
+        description: "Surrogate key (PK)"
+        tests:
+          - unique
+          - not_null
+      - name: track_name
+        description: "Track title"
+      - name: artist_name
+        description: "Artist name"
+      - name: in_spotify_playlists
+        description: "Number of Spotify playlists containing this track"
+      - name: spotify_streams
+        description: "Total Spotify streams"
+      - name: in_apple_playlists
+        description: "Number of Apple Music playlists"
+      - name: in_deezer_playlists
+        description: "Number of Deezer playlists"
+      - name: in_shazam_charts
+        description: "Shazam search count"
+      - name: tiktok_views
+        description: "Total TikTok views"
+      - name: tiktok_posts
+        description: "Number of TikTok posts using this track"
+      - name: youtube_views
+        description: "Total YouTube views"
+      - name: youtube_likes
+        description: "Total YouTube likes"
+      - name: pandora_streams
+        description: "Total Pandora streams"
+      - name: soundcloud_streams
+        description: "Total SoundCloud streams"
+      - name: tidal_popularity
+        description: "TIDAL popularity score"

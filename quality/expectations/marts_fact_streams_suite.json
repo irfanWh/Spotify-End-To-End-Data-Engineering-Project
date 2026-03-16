@@ -1,0 +1,48 @@
+{
+    "expectation_suite_name": "marts_fact_streams_suite",
+    "ge_cloud_id": null,
+    "meta": {
+        "great_expectations_version": "0.18.8",
+        "description": "Data quality checks for marts.fact_streams after dbt run"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "stream_id"
+            },
+            "meta": {
+                "notes": "Surrogate key must not be null"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "track_id"
+            },
+            "meta": {
+                "notes": "FK to dim_track must not be null"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "play_count",
+                "min_value": 0,
+                "max_value": 10000000
+            },
+            "meta": {
+                "notes": "Play count sanity check"
+            }
+        },
+        {
+            "expectation_type": "expect_table_row_count_to_be_between",
+            "kwargs": {
+                "min_value": 1000
+            },
+            "meta": {
+                "notes": "At least 1000 stream records expected"
+            }
+        }
+    ]
+}

@@ -1,0 +1,124 @@
+{
+    "expectation_suite_name": "raw_tracks_suite",
+    "ge_cloud_id": null,
+    "meta": {
+        "great_expectations_version": "0.18.8",
+        "description": "Data quality checks for raw.tracks_1m after batch loading"
+    },
+    "expectations": [
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "id"
+            },
+            "meta": {
+                "notes": "Track ID must exist"
+            }
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "name"
+            },
+            "meta": {
+                "notes": "Track name must exist"
+            }
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "danceability"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "energy"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_to_exist",
+            "kwargs": {
+                "column": "tempo"
+            },
+            "meta": {}
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "id"
+            },
+            "meta": {
+                "notes": "No null track IDs allowed"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_not_be_null",
+            "kwargs": {
+                "column": "name"
+            },
+            "meta": {
+                "notes": "No null track names allowed"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "danceability",
+                "min_value": 0.0,
+                "max_value": 1.0,
+                "mostly": 0.95
+            },
+            "meta": {
+                "notes": "Danceability should be between 0 and 1"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "energy",
+                "min_value": 0.0,
+                "max_value": 1.0,
+                "mostly": 0.95
+            },
+            "meta": {
+                "notes": "Energy should be between 0 and 1"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "tempo",
+                "min_value": 40.0,
+                "max_value": 250.0,
+                "mostly": 0.90
+            },
+            "meta": {
+                "notes": "Tempo should be between 40 and 250 BPM"
+            }
+        },
+        {
+            "expectation_type": "expect_column_values_to_be_between",
+            "kwargs": {
+                "column": "loudness",
+                "min_value": -60.0,
+                "max_value": 5.0,
+                "mostly": 0.95
+            },
+            "meta": {
+                "notes": "Loudness should be between -60 and 5 dB"
+            }
+        },
+        {
+            "expectation_type": "expect_table_row_count_to_be_between",
+            "kwargs": {
+                "min_value": 100000
+            },
+            "meta": {
+                "notes": "At least 100K rows should be loaded"
+            }
+        }
+    ]
+}
